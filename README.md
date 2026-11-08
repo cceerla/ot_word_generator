@@ -1,3 +1,5 @@
+# OT Word Generator
+generates words using a max sat solver.
 
 ## Installation Process
 
