@@ -25,65 +25,63 @@ def decode(var):
     r = var
     return (r,c,n)
 
-num_clauses = 0
-
-with open('sudoku.cnf', 'w') as f:
-    # sudoku: #vars is 9*9*9 (9 nums, 9 rows, 9 columns)
-    # clauses: (might just hard code from the actual generated clauses)
-    # max weight: 1 (since i'm encoding unweighted as wcnf, lmao.)
-    print('p cnf', 9*9*9, 9075, file=f)
-    for r in range(9):
-        for c in range(9):
-            # at least 1 num per spot
-            for n in range(9):
-                print(var(r,c,n), ' ', end='', file=f)
-            print(0, file=f)
-            # only 1 num per spot
-            for n in range(8):
-                for n2 in range(n+1,9):
-                    # thank you adrian brasoveanu for teaching me python prints
-                    print(f"-{var(r,c,n)} -{var(r,c,n2)} 0", file=f)
-    # 1 n per row
-    for r in range(9):
-        for n in range(9):
-            for c in range(9):
-                for c2 in range(c+1,9):
-                    # thank you adrian brasoveanu for teaching me python prints
-                    print(f"-{var(r,c,n)} -{var(r,c2,n)} 0", file=f)
-    # 1 n per col
+form = CNF()
+# sudoku: #vars is 9*9*9 (9 nums, 9 rows, 9 columns)
+# clauses: (might just hard code from the actual generated clauses)
+# max weight: 1 (since i'm encoding unweighted as wcnf, lmao.)
+for r in range(9):
     for c in range(9):
+        # at least 1 num per spot
+        allPresent = []
         for n in range(9):
-            for r in range(1,8):
-                for r2 in range(r+1,9):
-                    # thank you adrian brasoveanu for teaching me python prints
-                    print(f"-{var(r,c,n)} -{var(r2,c,n)} 0", file=f)
-    # 1 n per 3x3
-    for tri_r in range(3):
-        for tri_c in range(3):
-            for r in range(3):
-                for c in range(3):
-                    for r2 in range(r+1,3):
-                        for c2 in range(c+1,3):
-                            print(f"-{var(r,c,n)} -{var(r2,c2,n)} 0", file=f)
-    preset = [
-        [8,0,0, 0,0,0, 0,0,0],
-        [0,0,3, 6,0,0, 0,0,0],
-        [0,7,0, 0,9,0, 2,0,0],
-
-        [0,5,0, 0,0,7, 0,0,0],
-        [0,0,0, 0,4,5, 7,0,0],
-        [0,0,0, 1,0,0, 0,3,0],
-
-        [0,0,1, 0,0,0, 0,6,8],
-        [0,0,8, 5,0,0, 0,1,0],
-        [0,9,0, 0,0,0, 4,0,0],
-        ]
-    for r in range(9):
+            allPresent.append(var(r,c,n))
+        form.append(allPresent)
+        # only 1 num per spot
+        for n in range(8):
+            for n2 in range(n+1,9):
+                # thank you adrian brasoveanu for teaching me python prints
+                form.append([-var(r,c,n), -var(r,c,n2)])
+# 1 n per row
+for r in range(9):
+    for n in range(9):
         for c in range(9):
-            if preset[r][c] != 0:
-                # note: internally, nums are 0-8, but the input is 1-9
-                # we adjust here
-                print(f"{var(r,c,(preset[r][c]-1))} 0", file=f)
+            for c2 in range(c+1,9):
+                # thank you adrian brasoveanu for teaching me python prints
+                form.append([-var(r,c,n), -var(r,c2,n)])
+# 1 n per col
+for c in range(9):
+    for n in range(9):
+        for r in range(1,8):
+            for r2 in range(r+1,9):
+                # thank you adrian brasoveanu for teaching me python prints
+                form.append([-var(r,c,n), -var(r2,c,n)])
+# 1 n per 3x3
+for tri_r in range(3):
+    for tri_c in range(3):
+        for r in range(3):
+            for c in range(3):
+                for r2 in range(r+1,3):
+                    for c2 in range(c+1,3):
+                        form.append([-var(r,c,n), -var(r2,c2,n)])
+preset = [
+    [8,0,0, 0,0,0, 0,0,0],
+    [0,0,3, 6,0,0, 0,0,0],
+    [0,7,0, 0,9,0, 2,0,0],
+
+    [0,5,0, 0,0,7, 0,0,0],
+    [0,0,0, 0,4,5, 7,0,0],
+    [0,0,0, 1,0,0, 0,3,0],
+
+    [0,0,1, 0,0,0, 0,6,8],
+    [0,0,8, 5,0,0, 0,1,0],
+    [0,9,0, 0,0,0, 4,0,0],
+    ]
+for r in range(9):
+    for c in range(9):
+        if preset[r][c] != 0:
+            # note: internally, nums are 0-8, but the input is 1-9
+            # we adjust here
+            form.append([var(r,c,(preset[r][c]-1))])
 
 
 output = [
@@ -98,8 +96,8 @@ output = [
     [0,0,0, 0,0,0, 0,0,0],
     ]
 
-cnf = CNF(from_file='sudoku.cnf')
-with Solver(bootstrap_with=cnf) as solver:
+#cnf = CNF(from_file='sudoku.cnf')
+with Solver(bootstrap_with=form) as solver:
     solver.solve()
     for var in solver.get_model():
         if var > 0:
